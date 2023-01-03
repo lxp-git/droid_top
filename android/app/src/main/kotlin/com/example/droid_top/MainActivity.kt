@@ -1,11 +1,12 @@
 package com.example.droid_top
 
 import android.app.ActivityManager
-import android.content.pm.PackageManager
 import android.graphics.Bitmap
 import android.graphics.Canvas
 import android.graphics.drawable.BitmapDrawable
 import android.graphics.drawable.Drawable
+import android.os.Parcel
+import android.os.Parcelable
 import androidx.annotation.NonNull
 import io.flutter.embedding.android.FlutterActivity
 import io.flutter.embedding.engine.FlutterEngine
@@ -19,8 +20,8 @@ class MainActivity : FlutterActivity() {
     super.configureFlutterEngine(flutterEngine)
 //    var icon = packageManager.getApplicationInfo("com.tencent.mm", PackageManager.GET_META_DATA)
 //    println("com.tencent.mm:" + icon.toString())
-    val activityManager = getSystemService(ACTIVITY_SERVICE) as ActivityManager
-    activityManager.runningAppProcesses[0]
+//    val activityManager = getSystemService(ACTIVITY_SERVICE) as ActivityManager
+//    activityManager.runningAppProcesses[0]
     MethodChannel(flutterEngine.dartExecutor.binaryMessenger, "app.droid_top").setMethodCallHandler { call, result ->
       when (call.method) {
         "getApplicationIcon" -> {
@@ -29,6 +30,11 @@ class MainActivity : FlutterActivity() {
           } catch (error: Exception) {
             result.error("error", error.message, error)
           }
+        }
+        "getRunningAppProcesses" -> {
+          val activityManager = getSystemService(ACTIVITY_SERVICE) as ActivityManager
+//          activityManager.runningAppProcesses[0].writeToParcel()
+          result.success(activityManager.runningAppProcesses[0])
         }
         else -> { // Note the block
 
@@ -69,3 +75,15 @@ fun Bitmap.toByteArray(): ByteArray {
   this.compress(Bitmap.CompressFormat.PNG, 90, stream)
   return stream.toByteArray()
 }
+
+//fun Parcelable.toMap(): Map<String, Any> {
+//  Parcel
+////initialize your map before
+//  val map = {}
+//  val size: Int = this.readInt()
+//  for (i in 0 until size) {
+//    val key: String = in.readString()
+//    val value: String = in.readString()
+//    map[key] = value;
+//  }
+//}

@@ -18,6 +18,7 @@ class MyApp extends StatelessWidget {
     return MaterialApp(
       title: 'Flutter Demo',
       theme: ThemeData(
+        useMaterial3: true,
         // This is the theme of your application.
         //
         // Try running your application with "flutter run". You'll see the
@@ -27,7 +28,7 @@ class MyApp extends StatelessWidget {
         // or simply save your changes to "hot reload" in a Flutter IDE).
         // Notice that the counter didn't reset back to zero; the application
         // is not restarted.
-        primarySwatch: Colors.blue,
+        // primarySwatch: Colors.blue,
       ),
       home: const MyHomePage(title: 'Flutter Demo Home Page'),
     );
@@ -61,6 +62,7 @@ class TopProcess {
 
 class _MyHomePageState extends State<MyHomePage> {
   String _outText = "";
+  bool _isRunning = true;
   List<TopProcess> topProcesses = [];
 
   @override
@@ -68,11 +70,18 @@ class _MyHomePageState extends State<MyHomePage> {
     super.initState();
 
     runTop();
+    // test();
+  }
+
+  test() async {
+    final runningAppProcesses =
+        await channel.invokeMethod("getRunningAppProcesses");
+    print("runningAppProcesses:" + runningAppProcesses.toString());
   }
 
   Process? process;
 
-  void runTop() async {
+  runTop() async {
     process?.kill();
     // if (process == null) {
     process = await Process.start('su', []);
@@ -100,7 +109,8 @@ class _MyHomePageState extends State<MyHomePage> {
             memory = double.parse(e.substring(memoryStart, memoryEnd));
             cpu = double.parse(e.substring(cpuStart, cpuEnd));
             setState(() {
-              topProcesses.add(TopProcess(name: name, cpu: cpu, memory: memory));
+              topProcesses
+                  .add(TopProcess(name: name, cpu: cpu, memory: memory));
             });
           }
         } catch (error) {}
@@ -117,6 +127,10 @@ class _MyHomePageState extends State<MyHomePage> {
   final channel = MethodChannel("app.droid_top");
   final imageMemory = {};
 
+  _onRefresh() async {
+    await runTop();
+  }
+
   @override
   Widget build(BuildContext context) {
     // This method is rerun every time setState is called, for instance as done
@@ -130,6 +144,26 @@ class _MyHomePageState extends State<MyHomePage> {
         // Here we take the value from the MyHomePage object that was created by
         // the App.build method, and use it to set our appbar title.
         title: Text(widget.title),
+        actions: [
+          IconButton(
+              onPressed: () async {
+                if (_isRunning) {
+                  process?.kill();
+                  final exitCode = await process?.exitCode;
+                  if (exitCode != null && exitCode < 0) {
+                    setState(() {
+                      _isRunning = false;
+                    });
+                  }
+                } else {
+                  setState(() {
+                    _isRunning = true;
+                  });
+                  _onRefresh();
+                }
+              },
+              icon: Icon(_isRunning ? Icons.pause : Icons.play_arrow, size: 16))
+        ],
       ),
       body: RefreshIndicator(
         child: ListView.builder(
@@ -147,16 +181,20 @@ class _MyHomePageState extends State<MyHomePage> {
               leading: SizedBox(
                 width: 80,
                 height: 80,
-                child: imageMemory[topProcess.name] == null ? FutureBuilder(
-                  builder: (context, snapshot) {
-                    if (!snapshot.hasData) {
-                      return Container();
-                    }
-                    imageMemory[topProcess.name] = snapshot.data;
-                    return Image.memory(snapshot.data);
-                  },
-                  future: channel.invokeMethod("getApplicationIcon", topProcess.name).catchError(() => null),
-                ) : Image.memory(imageMemory[topProcess.name]),
+                child: imageMemory[topProcess.name] == null
+                    ? FutureBuilder(
+                        builder: (context, snapshot) {
+                          if (!snapshot.hasData) {
+                            return Container();
+                          }
+                          imageMemory[topProcess.name] = snapshot.data;
+                          return Image.memory(snapshot.data);
+                        },
+                        future: channel
+                            .invokeMethod("getApplicationIcon", topProcess.name)
+                            .catchError(() => null),
+                      )
+                    : Image.memory(imageMemory[topProcess.name]),
               ),
               title: Text(topProcess.name.isEmpty ? "N/A" : topProcess.name),
               subtitle: Text(topProcess.name),
@@ -165,7 +203,7 @@ class _MyHomePageState extends State<MyHomePage> {
           },
         ),
         onRefresh: () async {
-          runTop();
+          await _onRefresh();
         },
       ),
       // floatingActionButton: FloatingActionButton(
